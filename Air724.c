@@ -70,14 +70,6 @@ uchar connect2Tcp()
                                     return 1;  // 返回
                                 }
                             }
-                            else if (RX1_Buffer[i] == 'A') {
-                                // 检查是否为 "CONNECT"
-                                if (strncmp(&RX1_Buffer[i], "ALREADY CONNECT", 15) == 0) {
-                                    // 执行相应的操作
-                                    return 2;  // 返回
-                                }
-                            }
-
                         }
                     }
                     COM1.RX_Cnt = 0;
@@ -88,4 +80,16 @@ uchar connect2Tcp()
     PrintString1("AT+CIPSHUT\r");
     delay_ms(10);
     return 0;
+}
+void SendToTcp(uchar * str)
+{
+    PrintString1("AT+CIPSEND\r");
+    PrintString1(str);
+    TX1_write2buff(0x1A);
+}
+void SendAChar(uchar s)
+{
+    PrintString1("AT+CIPSEND=1\r");
+    TX1_write2buff(s);
+    TX1_write2buff('\r');
 }

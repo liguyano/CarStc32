@@ -10,6 +10,7 @@
 /* 如果要在程序中使用此代码,请在程序中注明使用了STC的资料及程序            */
 /*---------------------------------------------------------------------*/
 
+#include <STRING.H>
 #include	"config.h"
 #include	"STC32G_GPIO.h"
 #include	"STC32G_UART.h"
@@ -20,6 +21,7 @@
 #include "ATC02.h"
 #include "SSS.h"
 #include "Air724.h"
+#include "CAR.h"
 
 /*************	功能说明	**************
 
@@ -51,7 +53,7 @@
 void	GPIO_config(void)
 {
     GPIO_InitTypeDef	GPIO_InitStructure;		//结构定义
-    GPIO_InitStructure.Pin  = GPIO_Pin_0 | GPIO_Pin_1;		//指定要初始化的IO, GPIO_Pin_0 ~ GPIO_Pin_7
+    GPIO_InitStructure.Pin  = GPIO_Pin_0 | GPIO_Pin_1| GPIO_Pin_4| GPIO_Pin_5| GPIO_Pin_6| GPIO_Pin_7;		//指定要初始化的IO, GPIO_Pin_0 ~ GPIO_Pin_7
     GPIO_InitStructure.Mode = GPIO_PullUp;	//指定IO的输入或输出方式,GPIO_PullUp,GPIO_HighZ,GPIO_OUT_OD,GPIO_OUT_PP
     GPIO_Inilize(GPIO_P0,&GPIO_InitStructure);	//初始化
     GPIO_InitStructure.Pin  = GPIO_Pin_6 | GPIO_Pin_7;		//???¨??????????IO, GPIO_Pin_0 ~ GPIO_Pin_7
@@ -90,11 +92,12 @@ void	UART_config(void)
 void main(void)
 {
     u8	i;
+    uint time;
     int temp,humi;
+    char str[50] ;
     WTST = 0;		//设置程序指令延时参数，赋值为0可将CPU执行指令的速度设置为最快
     EAXSFR();		//扩展SFR(XFR)访问使能
     CKCON = 0;      //提高访问XRAM速度
-
     GPIO_config();
     UART_config();
     EA = 1;
@@ -104,12 +107,25 @@ void main(void)
     PrintString3("wait answer");
     connect();
     PrintString3("START");
+
     TX3_write2buff('\n');
     while (!connect2Tcp());
-    ATC_WRITE_DATA(0x00,'T');
+    ATC_WRITE_DATA(0x05,'T');
     SHT3XInit();
+    SendToTcp("wwpdsg");
+    delay_ms(100);
+    SendToTcp("wwpdsg");
+    delay_ms(100);
+    SendToTcp("wwpdsg");
+    delay_ms(100);
     while (1)
     {
+        time++;
+        if(time>10000)
+        {
+            SendToTcp("OK");
+            time=0;
+        }
         delay_ms(1);
         //PrintString3("STC32G UART3 Test Programme!\r\n");
         if(COM1.RX_TimeOut > 0)		//超时计数
@@ -119,16 +135,52 @@ void main(void)
                 if(COM1.RX_Cnt > 0)
                 {
                     for(i=0; i<COM1.RX_Cnt; i++)
+                    {
+                        if(RX1_Buffer[i]=='T')
+                        {
+
+                            if (strncmp(&RX1_Buffer[i], "TEMP", 4) == 0) {
+                                TX3_write2buff(atc_recv_data(5));
+                                delay_ms(1);
+                                SHT3X_XHGetTempAndHumi(&temp,&humi);
+                                sprintf(str,"T is %d ,%d temp"
+                                            "",temp,humi);
+                                SendToTcp(str);
+                            }
+                        }
+                        else if(RX1_Buffer[i]=='C')
+                        {
+
+                            if (strncmp(&RX1_Buffer[i], "CAR", 3) == 0) {
+                                SendToTcp("car");
+                                switch (RX1_Buffer[i+3]) {
+                                    case 'B':
+                                        CARBACK();
+                                        break;
+                                    case 'W':
+                                        CARSTART();
+                                        break;
+                                    case 'L':
+                                        CARLEFT();
+                                        break;
+                                    case 'R':
+                                        CARRIGHT();
+                                        break;
+                                    case 'C':
+                                        CARSTART();
+                                        break;
+                                }
+                            }
+                            else if (strncmp(&RX1_Buffer[i], "CLOSE", 5) == 0) {
+                                connect();
+                                PrintString3("START");
+                                TX3_write2buff('\n');
+                                while (!connect2Tcp());
+                            }
+                        }
                         TX3_write2buff(RX1_Buffer[i]);
-                    TX3_write2buff(atc_recv_data(0));
-                    SHT3X_XHGetTempAndHumi(&temp,&humi);
-                    // PrintString3(str);
-                    TX3_write2buff(temp/100+'0');
-                    TX3_write2buff(temp%100/10+'0');
-                    TX3_write2buff(temp%10+'0');
-                    TX3_write2buff(humi/100+'0');
-                    TX3_write2buff(humi%100/10+'0');
-                    TX3_write2buff(humi%10+'0');
+                    }
+
                 }
                 COM1.RX_Cnt = 0;
             }
@@ -139,13 +191,13 @@ void main(void)
             {
                 if(COM3.RX_Cnt > 0)
                 {
+                    PrintString1("AT+CIPSEND\r");
                     for(i=0; i<COM3.RX_Cnt; i++)
                     {
                         TX1_write2buff(RX3_Buffer[i]);
-
                     }
+                    TX1_write2buff(0x1A);
                 }
-
                 COM3.RX_Cnt = 0;
             }
         }
