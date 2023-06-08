@@ -105,7 +105,7 @@ void main(void)
     connect();
     PrintString3("START");
     TX3_write2buff('\n');
-    //PrintString1("AT\r\0");
+    while (!connect2Tcp());
     ATC_WRITE_DATA(0x00,'T');
     SHT3XInit();
     while (1)

@@ -2,6 +2,7 @@
 // Created by kurum on 西暦2023年6月7日.
 //
 
+#include <STRING.H>
 #include "Air724.h"
 /**
  * @brief senf a AT to the air724 per 200 millms
@@ -14,7 +15,6 @@ void connect()
     while (1)
     {
         PrintString1("AT\r");
-        PrintString3("AT\r");
         for ( i = 0; i < 200; ++i) {
             if(COM1.RX_TimeOut > 0)		//???±????
             {
@@ -24,7 +24,7 @@ void connect()
                     {
                         for(i=0; i<COM1.RX_Cnt; i++)
                         {
-                            TX3_write2buff(RX1_Buffer[i]);
+
                             if(RX1_Buffer[i]==0x4f)
                             {
                                 if (RX1_Buffer[i+1]== 0x4b)
@@ -43,4 +43,49 @@ void connect()
     out:
     return;
 
+}
+/**
+ * @brief used to connect to the Tcp Serves
+ * @param none
+ * @return return 1 when connected else return 0
+ * */
+uchar connect2Tcp()
+{
+        uchar i;
+        PrintString1("AT+CIPSTART=TCP,43.136.94.231,7001\r");
+        for ( i = 0; i < 200; ++i) {
+            if(COM1.RX_TimeOut > 0)		//???±????
+            {
+                if(--COM1.RX_TimeOut == 0)
+                {
+                    if(COM1.RX_Cnt > 0)
+                    {
+                        for(i=0; i<COM1.RX_Cnt; i++)
+                        {
+                            TX3_write2buff(RX1_Buffer[i]);
+                            if (RX1_Buffer[i] == 'C') {
+                                // 检查是否为 "CONNECT"
+                                if (strncmp(&RX1_Buffer[i], "CONNECT OK", 10) == 0) {
+                                    // 执行相应的操作
+                                    return 1;  // 返回
+                                }
+                            }
+                            else if (RX1_Buffer[i] == 'A') {
+                                // 检查是否为 "CONNECT"
+                                if (strncmp(&RX1_Buffer[i], "ALREADY CONNECT", 15) == 0) {
+                                    // 执行相应的操作
+                                    return 2;  // 返回
+                                }
+                            }
+
+                        }
+                    }
+                    COM1.RX_Cnt = 0;
+                }
+            }
+            delay_ms(1);
+        }
+    PrintString1("AT+CIPSHUT\r");
+    delay_ms(10);
+    return 0;
 }
