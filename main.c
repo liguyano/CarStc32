@@ -19,9 +19,9 @@
 #include	"STC32G_Switch.h"
 #include "SHT35.h"
 #include "ATC02.h"
-#include "SSS.h"
 #include "Air724.h"
 #include "CAR.h"
+#include "MPU6050.h"
 
 /*************	功能说明	**************
 
@@ -93,7 +93,7 @@ void main(void)
 {
     u8	i;
     uint time;
-    int temp,humi;
+    int temp,humi,x,y;
     char str[50] ;
     WTST = 0;		//设置程序指令延时参数，赋值为0可将CPU执行指令的速度设置为最快
     EAXSFR();		//扩展SFR(XFR)访问使能
@@ -105,11 +105,12 @@ void main(void)
 
     //TX3_write2buff(4*16+str[0]%16);
     PrintString3("wait answer");
-    connect();
-    PrintString3("START");
-
+    //connect();
+    PrintString3(
+            "START");
+    InitMPU6050();
     TX3_write2buff('\n');
-    while (!connect2Tcp());
+   // while (!connect2Tcp());
     ATC_WRITE_DATA(0x05,'T');
     SHT3XInit();
     SendToTcp("wwpdsg");
@@ -143,7 +144,7 @@ void main(void)
                                 TX3_write2buff(atc_recv_data(5));
                                 delay_ms(1);
                                 SHT3X_XHGetTempAndHumi(&temp,&humi);
-                                sprintf(str,"T is %d ,%d temp"
+                                sprintf(str,"%d,%d"
                                             "",temp,humi);
                                 SendToTcp(str);
                             }
@@ -181,6 +182,7 @@ void main(void)
                         TX3_write2buff(RX1_Buffer[i]);
                     }
 
+
                 }
                 COM1.RX_Cnt = 0;
             }
@@ -195,9 +197,12 @@ void main(void)
                     for(i=0; i<COM3.RX_Cnt; i++)
                     {
                         TX1_write2buff(RX3_Buffer[i]);
+                        TX3_write2buff(RX3_Buffer[i]);
                     }
                     TX1_write2buff(0x1A);
                 }
+                sprintf(str,"x:%d,y:%d",GetData(GYRO_XOUT_H), GetData(GYRO_YOUT_L));
+                PrintString3(str);
                 COM3.RX_Cnt = 0;
             }
         }
