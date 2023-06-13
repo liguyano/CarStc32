@@ -92,7 +92,7 @@ void	UART_config(void)
 void main(void)
 {
     u8	i;
-    uint time;
+    uint time=0;
     int temp,humi,x,y;
     char str[50] ;
     WTST = 0;		//设置程序指令延时参数，赋值为0可将CPU执行指令的速度设置为最快
@@ -104,13 +104,14 @@ void main(void)
     //set P24 and P25 to high
 
     //TX3_write2buff(4*16+str[0]%16);
+    connect:
+    time=0;
     PrintString3("wait answer");
-    //connect();
-    PrintString3(
-            "START");
+    connect();
+    PrintString3("START");
     InitMPU6050();
     TX3_write2buff('\n');
-   // while (!connect2Tcp());
+    while (!connect2Tcp());
     ATC_WRITE_DATA(0x05,'T');
     SHT3XInit();
     SendToTcp("wwpdsg");
@@ -121,16 +122,18 @@ void main(void)
     delay_ms(100);
     while (1)
     {
-        time++;
-        if(time>10000)
-        {
-            SendToTcp("OK");
-            time=0;
-        }
         delay_ms(1);
+        time++;
+        if (time>=60000)
+        {
+            PrintString1("AT+CIPSHUT\r");
+            time=0;
+            goto connect;
+        }
         //PrintString3("STC32G UART3 Test Programme!\r\n");
         if(COM1.RX_TimeOut > 0)		//超时计数
         {
+            time=0;
             if(--COM1.RX_TimeOut == 0)
             {
                 if(COM1.RX_Cnt > 0)
@@ -144,7 +147,7 @@ void main(void)
                                 TX3_write2buff(atc_recv_data(5));
                                 delay_ms(1);
                                 SHT3X_XHGetTempAndHumi(&temp,&humi);
-                                sprintf(str,"%d,%d"
+                                sprintf(str,"%dth%d"
                                             "",temp,humi);
                                 SendToTcp(str);
                             }
@@ -168,15 +171,12 @@ void main(void)
                                         CARRIGHT();
                                         break;
                                     case 'C':
-                                        CARSTART();
+                                        CARSTOP();
                                         break;
                                 }
                             }
                             else if (strncmp(&RX1_Buffer[i], "CLOSE", 5) == 0) {
-                                connect();
-                                PrintString3("START");
-                                TX3_write2buff('\n');
-                                while (!connect2Tcp());
+                                goto connect;
                             }
                         }
                         TX3_write2buff(RX1_Buffer[i]);
@@ -193,16 +193,27 @@ void main(void)
             {
                 if(COM3.RX_Cnt > 0)
                 {
-                    PrintString1("AT+CIPSEND\r");
+                    //PrintString1("AT+CIPSEND\r");
                     for(i=0; i<COM3.RX_Cnt; i++)
                     {
+                        if(RX3_Buffer[i]=='D')
+                        {
+                            if (RX3_Buffer[i+1]=='I')
+                            {
+                                x=RX3_Buffer[i+1];
+                                if (x<100)
+                                {
+                                    CARSTOP();
+                                }
+                            }
+                        }
                         TX1_write2buff(RX3_Buffer[i]);
-                        TX3_write2buff(RX3_Buffer[i]);
+                       // TX3_write2buff(RX3_Buffer[i]);
                     }
-                    TX1_write2buff(0x1A);
+                   // TX1_write2buff(0x1A);
                 }
-                sprintf(str,"x:%d,y:%d",GetData(GYRO_XOUT_H), GetData(GYRO_YOUT_L));
-                PrintString3(str);
+               /* sprintf(str,"x:%d,y:%d",GetData(GYRO_XOUT_H), GetData(GYRO_YOUT_L));
+                PrintString3(str);*/
                 COM3.RX_Cnt = 0;
             }
         }

@@ -78,7 +78,7 @@ uchar connect2Tcp()
             delay_ms(1);
         }
     PrintString1("AT+CIPSHUT\r");
-    delay_ms(10);
+    delay_ms(1000);
     return 0;
 }
 void SendToTcp(uchar * str)
