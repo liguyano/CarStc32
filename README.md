@@ -1,7 +1,7 @@
 # CarStc32
 4g driver by stc32, 
 this file is write to contral the air742 4g driver.
-## update in 令和5年6月8日
+## update in 令和5年6月13日
 * add the auto avoid part.
 this part use the Serial send a "DD" to the esp , and the esp will return the distance of 3 direction.
 ## update in 令和5年6月8日
